@@ -1,7 +1,7 @@
 /**
- * Timeseries visualization.
+ * Stacked Area Chart.
  */
-pv.vis.timeseries = function() {
+pv.vis.stackedAreaChart = function() {
     /**
      * Visual configs.
      */
@@ -13,19 +13,17 @@ pv.vis.timeseries = function() {
     /**
      * Accessors.
      */
-    let time = d => d.time,
-        value = d => d.value;
+    let time = d => d.time;
 
     /**
      * Data binding to DOM elements.
      */
-    let data,
-        dataChanged = true; // True to redo all data-related computations
+    let data;
 
     /**
      * DOM.
      */
-    let visContainer, // Containing the entire visualization
+    let visContainer,
         itemContainer,
         xAxisContainer,
         yAxisContainer;
@@ -35,21 +33,21 @@ pv.vis.timeseries = function() {
      */
     const xScale = d3.scaleTime(),
         yScale = d3.scaleLinear(),
-        xAxis = d3.axisBottom().scale(xScale).ticks(5),
+        xAxis = d3.axisBottom().scale(xScale).ticks(d3.timeWeek),
         yAxis = d3.axisLeft().scale(yScale),
-        line = d3.line()
-            .x(d => xScale(time(d)))
-            .y(d => yScale(value(d))),
-        listeners = d3.dispatch('click');
+        area = d3.area()
+            .x(d => xScale(time(d.data)))
+            .y0(d => yScale(d[0]))
+            .y1(d => yScale(d[1]));
+    let colorScale;
 
     /**
      * Main entry of the module.
      */
     function module(selection) {
         selection.each(function(_data) {
-            // Initialize
             if (!this.visInitialized) {
-                visContainer = d3.select(this).append('g').attr('class', 'pv-template');
+                visContainer = d3.select(this).append('g').attr('class', 'pv-stacked-area-chart');
                 xAxisContainer = visContainer.append('g').attr('class', 'x-axis');
                 yAxisContainer = visContainer.append('g').attr('class', 'y-axis');
                 itemContainer = visContainer.append('g').attr('class', 'items');
@@ -60,71 +58,41 @@ pv.vis.timeseries = function() {
             data = _data;
             update();
         });
-
-        dataChanged = false;
     }
 
     /**
      * Updates the visualization when data or display attributes changes.
      */
     function update() {
-        // Canvas update
+        /**
+         * Display area.
+         */
         width = visWidth - margin.left - margin.right;
         height = visHeight - margin.top - margin.bottom;
-
         visContainer.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
         xAxisContainer.attr('transform', 'translate(0,' + height + ')');
-
-        xScale.range([0, width]);
-        yScale.range([height, 0]);
 
         /**
          * Computation.
          */
-        // Updates that depend only on data change
-        if (dataChanged) {
-            xScale.domain(d3.extent(data, time));
-            yScale.domain([0, d3.max(data, value)]);
-        }
-
+        const series = d3.stack().keys(data.columns.slice(1))(data);
+        
+        xScale.domain(d3.extent(data, time))
+            .range([0, width]);
+        yScale.domain([0, d3.max(series, d => d3.max(d, d => d[1]))]).nice()
+            .range([height, 0]);
+        
         /**
          * Draw.
          */
-        pv.enterUpdate([data], itemContainer, enterItems, updateItems, null, 'path');
+        itemContainer.selectAll('path')
+            .data(series)
+            .join('path')
+                .attr('fill', ({ key }) => colorScale(key))
+                .attr('d', area);
+
         xAxisContainer.call(xAxis);
         yAxisContainer.call(yAxis);
-    }
-
-    /**
-     * Called when new items added.
-     */
-    function enterItems(selection) {
-        const container = selection
-            // .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
-            .attr('opacity', 0)
-            .on('click', function(d) {
-                listeners.call('click', this, d);
-            });
-
-        container.append('path')
-            .attr('fill', 'none')
-            .attr('stroke', 'steelblue');
-    }
-
-    /**
-     * Called when items updated.
-     */
-    function updateItems(selection) {
-        selection.each(function(d) {
-            const container = d3.select(this);
-
-            // Transition location & opacity
-            container.transition()
-                // .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
-                .attr('opacity', 1);
-            container.select('path')
-                .attr('d', line);
-        });
     }
 
     /**
@@ -155,18 +123,12 @@ pv.vis.timeseries = function() {
     };
 
     /**
-     * Sets the flag indicating data input has been changed.
+     * Sets/gets the color scale.
      */
-    module.invalidate = function() {
-        dataChanged = true;
-    };
-
-    /**
-     * Binds custom events.
-     */
-    module.on = function() {
-        const value = listeners.on.apply(listeners, arguments);
-        return value === listeners ? module : value;
+    module.colorScale = function(value) {
+        if (!arguments.length) return colorScale;
+        colorScale = value;
+        return this;
     };
 
     return module;
