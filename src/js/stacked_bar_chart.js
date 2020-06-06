@@ -1,7 +1,7 @@
 /**
- * Stacked Area Chart.
+ * Stacked Bar Chart.
  */
-pv.vis.stackedAreaChart = function() {
+pv.vis.stackedBarChart = function() {
     /**
      * Visual configs.
      */
@@ -13,7 +13,7 @@ pv.vis.stackedAreaChart = function() {
     /**
      * Accessors.
      */
-    let time = d => d.time;
+    let label = d => d.label;
 
     /**
      * Data binding to DOM elements.
@@ -31,14 +31,10 @@ pv.vis.stackedAreaChart = function() {
     /**
      * D3.
      */
-    const xScale = d3.scaleTime(),
+    const xScale = d3.scaleBand().padding(0.1),
         yScale = d3.scaleLinear(),
         xAxis = d3.axisBottom().scale(xScale).ticks(d3.timeWeek),
-        yAxis = d3.axisLeft().scale(yScale).ticks(5),
-        area = d3.area()
-            .x(d => xScale(time(d.data)))
-            .y0(d => yScale(d[0]))
-            .y1(d => yScale(d[1]));
+        yAxis = d3.axisLeft().scale(yScale).ticks(5);
     let colorScale;
 
     /**
@@ -47,7 +43,7 @@ pv.vis.stackedAreaChart = function() {
     function module(selection) {
         selection.each(function(_data) {
             if (!this.visInitialized) {
-                visContainer = d3.select(this).append('g').attr('class', 'pv-stacked-area-chart');
+                visContainer = d3.select(this).append('g').attr('class', 'pv-stacked-bar-chart');
                 xAxisContainer = visContainer.append('g').attr('class', 'x-axis');
                 yAxisContainer = visContainer.append('g').attr('class', 'y-axis');
                 itemContainer = visContainer.append('g').attr('class', 'items');
@@ -77,7 +73,7 @@ pv.vis.stackedAreaChart = function() {
          */
         const series = d3.stack().keys(data.columns.slice(1))(data);
         
-        xScale.domain(d3.extent(data, time))
+        xScale.domain(data.map(label))
             .range([0, width]);
         yScale.domain([0, d3.max(series, d => d3.max(d, d => d[1]))]).nice()
             .range([height, 0]);
@@ -85,13 +81,22 @@ pv.vis.stackedAreaChart = function() {
         /**
          * Draw.
          */
-        itemContainer.selectAll('path')
+        itemContainer.selectAll('g')
             .data(series)
-            .join('path')
+            .join('g')
                 .attr('fill', ({ key }) => colorScale(key))
-                .attr('d', area)
-            .append('title')
-                .text(({ key }) => key);
+            .selectAll('rect')
+                .data(d => d)
+                .join('rect')
+                    .attr('x', d => xScale(label(d.data)))
+                    .attr('y', d => yScale(d[1]))
+                    .attr('height', d => yScale(d[0]) - yScale(d[1]))
+                    .attr('width', xScale.bandwidth())
+                .append('title')
+                    .text(function(d) {
+                        const key = d3.select(this.parentNode.parentNode).datum().key;
+                        return `${label(d.data)}: ${key} (${(d.data[key])})`;
+                    });
 
         xAxisContainer.call(xAxis);
         yAxisContainer.call(yAxis);

@@ -2,10 +2,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     const colorScale = d3.scaleOrdinal();
 
     // Instantiate vis and its parameters
-    const vis = pv.vis.stackedAreaChart()
+    const stackedBar = pv.vis.stackedBarChart()
         .margin({ top: 10, right: 10, bottom: 30, left: 50 })
         .colorScale(colorScale);
-    const stackedContainer = d3.select('.stacked');
+    const stackedBarContainer = d3.select('.stacked-bar');
+
+    const stackedArea = pv.vis.stackedAreaChart()
+        .margin({ top: 10, right: 10, bottom: 30, left: 50 })
+        .colorScale(colorScale);
+    const stackedAreaContainer = d3.select('.stacked-area');
 
     const legend = pv.vis.legend()
         .margin({ top: 3, right: 3, bottom: 3, left: 50 })
@@ -19,14 +24,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     const data = processData(await d3.csv('../../data/deaths-by-location.csv'));
 
     // Build the vis
-    colorScale.domain(data.columns.slice(1)).range(d3.schemeSet3);
+    colorScale.domain(data.columns.slice(1)).range(d3.schemeSet2);
     update();
 
     /**
      * Updates vis when window changed.
      */
     function update() {
-        updateVis(vis, stackedContainer, data);
+        updateVis(stackedBar, stackedBarContainer, data);
+        updateVis(stackedArea, stackedAreaContainer, data);
         legendContainer.datum(data.columns.slice(1)).call(legend);
     }
 
@@ -43,6 +49,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         data.forEach(d => {
             d.time = new Date(d.Week);
+            d.label = d3.timeFormat('%b %d')(d.time);
         });
 
         data.columns = columns;
