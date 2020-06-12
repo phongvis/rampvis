@@ -78,10 +78,10 @@ pv.vis.legend = function() {
      * Called when items updated.
      */
     function updateItems(selection) {
-        selection.each(function() {
+        selection.each(function(d) {
             const container = d3.select(this);
-            container.select('.box').style('background-color', colorScale);
-            container.select('span').text(Object);
+            container.select('.box').style('background-color', colorScale(d.name || d));
+            container.select('span').text(d.label || d);
         });
     }
 

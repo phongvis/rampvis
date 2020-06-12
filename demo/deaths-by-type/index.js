@@ -28,7 +28,15 @@ document.addEventListener('DOMContentLoaded', async function() {
      */
     function update() {
         updateVis(stackedBar, stackedBarContainer, data);
-        legendContainer.datum(columns).call(legend);
+        legendContainer.datum(getLegends(columns)).call(legend);
+    }
+
+    function getLegends(columns) {
+        return columns.map(c => {
+            if (c === 'others') return { name: c, label: 'other reasons' };
+            if (c === 'average') return { name: c, label: 'average of corresponding week over the past 5 years' };
+            return { name: c, label: c };
+        });
     }
 
     function updateVis(vis, container, data) {
