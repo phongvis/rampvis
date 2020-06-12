@@ -4,12 +4,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Instantiate vis and its parameters
     const stackedBar = pv.vis.mirroredStackedBarChart()
         .margin({ top: 10, right: 10, bottom: 30, left: 50 })
-        .colorScale(colorScale);
+        .colorScale(colorScale)
+        .splitAttribute('Gender');
     const stackedBarContainer = d3.select('.stacked-bar');
 
     const stackedArea = pv.vis.mirroredStackedAreaChart()
         .margin({ top: 10, right: 10, bottom: 30, left: 50 })
-        .colorScale(colorScale);
+        .colorScale(colorScale)
+        .splitAttribute('Gender');
     const stackedAreaContainer = d3.select('.stacked-area');
 
     const legend = pv.vis.legend()
@@ -24,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const data = processData(await d3.csv('../../data/deaths-by-gender-age.csv'));
 
     // Build the vis
-    colorScale.domain(data.columns.slice(1)).range(d3.schemeYlOrRd[8]);
+    colorScale.domain(data.columns).range(['gray', 'gray', 'gray'].concat(d3.schemeBlues[5].slice(0, 4)));
     update();
 
     /**
@@ -33,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     function update() {
         updateVis(stackedBar, stackedBarContainer, data);
         updateVis(stackedArea, stackedAreaContainer, data);
-        legendContainer.datum(data.columns.slice(2)).call(legend);
+        legendContainer.datum(data.columns).call(legend);
     }
 
     function updateVis(vis, container, data) {
@@ -43,9 +45,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     function processData(data) {
-        // Exclude weeks with all 0
+        // The first two columns are for time and gender
+        data.columns.splice(0, 2);
+
         const columns = data.columns;
-        data = data.filter(d => data.columns.slice(1).some(att => parseInt(d[att])));
+        data.forEach(d => {
+            columns.forEach(c => {
+                d[c] = preprocessValue(d[c])
+            });
+        });
+
+        // Exclude weeks with all 0
+        data = data.filter(d => data.columns.some(att => d[att]));
 
         data.forEach(d => {
             d.time = new Date(d.Week);
@@ -59,5 +70,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         };
         
         return newData;
+    }
+
+    function preprocessValue(s) {
+        return typeof(s) === 'number' ? s : parseInt(s.replace(',', '').trim());
     }
 });

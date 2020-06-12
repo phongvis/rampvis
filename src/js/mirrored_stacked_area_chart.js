@@ -18,7 +18,8 @@ pv.vis.mirroredStackedAreaChart = function() {
     /**
      * Data binding to DOM elements.
      */
-    let data; // data.columns = [time, split_attribute, ...]
+    let data,
+        splitAttribute;
 
     /**
      * DOM.
@@ -83,8 +84,8 @@ pv.vis.mirroredStackedAreaChart = function() {
         /**
          * Computation.
          */
-        const seriesTop = d3.stack().keys(data.columns.slice(2))(data.top);
-        const seriesBottom = d3.stack().keys(data.columns.slice(2))(data.bottom);
+        const seriesTop = d3.stack().keys(data.columns)(data.top);
+        const seriesBottom = d3.stack().keys(data.columns)(data.bottom);
 
         xScale.domain(d3.extent(data.top, time))
             .range([0, width]);
@@ -104,12 +105,6 @@ pv.vis.mirroredStackedAreaChart = function() {
                 .attr('d', areaTop)
             .append('title')
                 .text(({ key }) => key);
-        visContainer.append('text')
-            .text(data.top[0][data.columns[1]])
-            .style('fill', 'black')
-            .style('font-size', '14px')
-            .attr('x', 10)
-            .attr('y', 20);
         
         itemContainer.selectAll('path.bottom')
             .data(seriesBottom)
@@ -119,19 +114,29 @@ pv.vis.mirroredStackedAreaChart = function() {
                 .attr('d', areaBottom)
             .append('title')
                 .text(({ key }) => key);
-        visContainer.append('text')
-            .text(data.bottom[0][data.columns[1]])
-            .style('fill', 'black')
-            .style('font-size', '14px')
-            .attr('x', 10)
-            .attr('y', height * 2 - 20);
-
-        visContainer.append('line')
-            .attr('x1', 0)
-            .attr('x2', width)
-            .attr('y1', height)
-            .attr('y2', height)
-            .style('stroke', 'black');
+        
+        // Section labels and separator line
+        const topSectionLabel = data.top[0][splitAttribute];
+        const bottomSectionLabel = data.bottom[0][splitAttribute];
+        visContainer.selectAll('text.section')
+            .data([{ label: topSectionLabel, y: 20 }, { label: bottomSectionLabel, y: height * 2 - 20 }])
+            .join('text')
+                .attr('class', 'section')
+                .text(d => d.label)
+                .style('fill', 'black')
+                .style('font-size', '14px')
+                .attr('x', 10)
+                .attr('y', d => d.y);
+        
+        visContainer.selectAll('line.sep')
+            .data([0])
+            .join('line')
+                .attr('class', 'sep')
+                .attr('x1', 0)
+                .attr('x2', width)
+                .attr('y1', height)
+                .attr('y2', height)
+                .style('stroke', 'black');
 
         xAxisContainer.call(xAxis);
         yAxisContainerTop.call(yAxisTop);
@@ -171,6 +176,15 @@ pv.vis.mirroredStackedAreaChart = function() {
     module.colorScale = function(value) {
         if (!arguments.length) return colorScale;
         colorScale = value;
+        return this;
+    };
+
+    /**
+     * Sets/gets the attribute that is split horizontally.
+     */
+    module.splitAttribute = function(value) {
+        if (!arguments.length) return splitAttribute;
+        splitAttribute = value;
         return this;
     };
 

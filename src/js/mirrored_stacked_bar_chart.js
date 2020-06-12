@@ -18,7 +18,8 @@ pv.vis.mirroredStackedBarChart = function() {
     /**
      * Data binding to DOM elements.
      */
-    let data; // data.columns = [time, split_attribute, ...]
+    let data, 
+        splitAttribute;
 
     /**
      * DOM.
@@ -75,8 +76,8 @@ pv.vis.mirroredStackedBarChart = function() {
         /**
          * Computation.
          */
-        const seriesTop = d3.stack().keys(data.columns.slice(2))(data.top);
-        const seriesBottom = d3.stack().keys(data.columns.slice(2))(data.bottom);
+        const seriesTop = d3.stack().keys(data.columns)(data.top);
+        const seriesBottom = d3.stack().keys(data.columns)(data.bottom);
 
         xScale.domain(data.top.map(label))
             .range([0, width]);
@@ -88,7 +89,7 @@ pv.vis.mirroredStackedBarChart = function() {
         /**
          * Draw.
          */
-        let sectionLabel = data.top[0][data.columns[1]];
+        const topSectionLabel = data.top[0][splitAttribute];
         itemContainer.selectAll('g.top')
             .data(seriesTop)
             .join('g')
@@ -104,16 +105,10 @@ pv.vis.mirroredStackedBarChart = function() {
                 .append('title')
                     .text(function(d) {
                         const key = d3.select(this.parentNode.parentNode).datum().key;
-                        return `${sectionLabel}\n${label(d.data)}: ${key} (${(d.data[key])})`;
+                        return `${topSectionLabel}\n${label(d.data)}: ${key} (${(d.data[key])})`;
                     });
-        visContainer.append('text')
-            .text(sectionLabel)
-            .style('fill', 'black')
-            .style('font-size', '14px')
-            .attr('x', 10)
-            .attr('y', 20);
         
-        sectionLabel = data.bottom[0][data.columns[1]];
+        const bottomSectionLabel = data.bottom[0][splitAttribute];
         itemContainer.selectAll('g.bottom')
             .data(seriesBottom)
             .join('g')
@@ -129,21 +124,29 @@ pv.vis.mirroredStackedBarChart = function() {
                 .append('title')
                     .text(function(d) {
                         const key = d3.select(this.parentNode.parentNode).datum().key;
-                        return `${sectionLabel}\n${label(d.data)}: ${key} (${(d.data[key])})`;
+                        return `${bottomSectionLabel}\n${label(d.data)}: ${key} (${(d.data[key])})`;
                     });
-        visContainer.append('text')
-            .text(sectionLabel)
-            .style('fill', 'black')
-            .style('font-size', '14px')
-            .attr('x', 10)
-            .attr('y', height * 2 - 20);
 
-        visContainer.append('line')
-            .attr('x1', 0)
-            .attr('x2', width)
-            .attr('y1', height)
-            .attr('y2', height)
-            .style('stroke', 'black');
+        // Section labels and separator line
+        visContainer.selectAll('text.section')
+            .data([{ label: topSectionLabel, y: 20 }, { label: bottomSectionLabel, y: height * 2 - 20 }])
+            .join('text')
+                .attr('class', 'section')
+                .text(d => d.label)
+                .style('fill', 'black')
+                .style('font-size', '14px')
+                .attr('x', 10)
+                .attr('y', d => d.y);
+
+        visContainer.selectAll('line.sep')
+            .data([0])
+            .join('line')
+                .attr('class', 'sep')
+                .attr('x1', 0)
+                .attr('x2', width)
+                .attr('y1', height)
+                .attr('y2', height)
+                .style('stroke', 'black');
 
         xAxisContainer.call(xAxis);
         yAxisContainerTop.call(yAxisTop);
@@ -183,6 +186,15 @@ pv.vis.mirroredStackedBarChart = function() {
     module.colorScale = function(value) {
         if (!arguments.length) return colorScale;
         colorScale = value;
+        return this;
+    };
+
+    /**
+     * Sets/gets the attribute that is split horizontally.
+     */
+    module.splitAttribute = function(value) {
+        if (!arguments.length) return splitAttribute;
+        splitAttribute = value;
         return this;
     };
 

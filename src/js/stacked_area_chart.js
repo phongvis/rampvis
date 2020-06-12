@@ -75,7 +75,7 @@ pv.vis.stackedAreaChart = function() {
         /**
          * Computation.
          */
-        const series = d3.stack().keys(data.columns.slice(1))(data);
+        const series = d3.stack().keys(data.columns)(data);
         
         xScale.domain(d3.extent(data, time))
             .range([0, width]);

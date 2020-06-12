@@ -1,7 +1,7 @@
 /**
- * Stacked Bar Chart.
+ * Combined Stacked Bar Chart and Line Chart.
  */
-pv.vis.stackedBarChart = function() {
+pv.vis.stackedBarLineChart = function() {
     /**
      * Visual configs.
      */
@@ -18,13 +18,13 @@ pv.vis.stackedBarChart = function() {
     /**
      * Data binding to DOM elements.
      */
-    let data;
+    let data; // { barColumns, lineColumns, [] }
 
     /**
      * DOM.
      */
     let visContainer,
-        itemContainer,
+        barContainer,
         xAxisContainer,
         yAxisContainer;
 
@@ -34,7 +34,10 @@ pv.vis.stackedBarChart = function() {
     const xScale = d3.scaleBand().padding(0.1),
         yScale = d3.scaleLinear(),
         xAxis = d3.axisBottom().scale(xScale).ticks(d3.timeWeek),
-        yAxis = d3.axisLeft().scale(yScale).ticks(5);
+        yAxis = d3.axisLeft().scale(yScale).ticks(5),
+        line = d3.line()
+            .x(d => xScale(d.label) + xScale.bandwidth() / 2)
+            .y(d => yScale(d.value));
     let colorScale;
 
     /**
@@ -46,7 +49,8 @@ pv.vis.stackedBarChart = function() {
                 visContainer = d3.select(this).append('g').attr('class', 'pv-stacked-bar-chart');
                 xAxisContainer = visContainer.append('g').attr('class', 'x-axis');
                 yAxisContainer = visContainer.append('g').attr('class', 'y-axis');
-                itemContainer = visContainer.append('g').attr('class', 'items');
+                barContainer = visContainer.append('g').attr('class', 'bars');
+                lineContainer = visContainer.append('g').attr('class', 'lines');
 
                 this.visInitialized = true;
             }
@@ -71,18 +75,25 @@ pv.vis.stackedBarChart = function() {
         /**
          * Computation.
          */
-        const series = d3.stack().keys(data.columns)(data);
+        const barSeries = d3.stack().keys(data.barColumns)(data);
+        const lineSeries = data.lineColumns.map(c => ({
+            key: c,
+            items: data.map(d => ({
+                label: label(d),
+                value: d[c]
+            }))
+        }));
         
         xScale.domain(data.map(label))
             .range([0, width]);
-        yScale.domain([0, d3.max(series, d => d3.max(d, d => d[1]))]).nice()
+        yScale.domain([0, d3.max(barSeries, d => d3.max(d, d => d[1]))]).nice()
             .range([height, 0]);
         
         /**
          * Draw.
          */
-        itemContainer.selectAll('g')
-            .data(series)
+        barContainer.selectAll('g')
+            .data(barSeries)
             .join('g')
                 .attr('fill', ({ key }) => colorScale(key))
             .selectAll('rect')
@@ -97,6 +108,24 @@ pv.vis.stackedBarChart = function() {
                         const key = d3.select(this.parentNode.parentNode).datum().key;
                         return `${label(d.data)}: ${key} (${(d.data[key])})`;
                     });
+
+        lineContainer.selectAll('path')
+            .data(lineSeries)
+            .join('path')
+                .style('stroke',  ({ key }) => colorScale(key))
+                .style('stroke-width', '2px')
+                .style('fill', 'none')
+                .attr('d', d => line(d.items));
+        lineContainer.selectAll('g')
+            .data(lineSeries)
+            .join('g')
+            .selectAll('circle')
+                .data(d => d.items)
+                .join('circle')
+                    .style('fill', function() { return colorScale(d3.select(this.parentNode).datum().key); })
+                    .attr('cx', d => xScale(d.label) + xScale.bandwidth() / 2)
+                    .attr('cy', d => yScale(d.value))
+                    .attr('r', 3);
 
         xAxisContainer.call(xAxis);
         yAxisContainer.call(yAxis);
